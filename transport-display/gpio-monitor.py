@@ -6,6 +6,7 @@ import requests
 import websocket
 import signal
 import sys
+import subprocess
 from queue import Queue, Empty
 
 CONFIG_PATH = "/home/pi/transport-display/config.json"
@@ -13,6 +14,7 @@ CDP_URL = "http://127.0.0.1:9222/json"
 
 event_queue = Queue()
 running = True
+display_on = True
 
 
 def cleanup(*_args):
@@ -90,8 +92,33 @@ def navigate_to(url, name, duration):
     ws.close()
 
 
-def setup_gpio(buttons):
+def toggle_display(name, duration):
+    global display_on
+    display_on = not display_on
+    state = "1" if display_on else "0"
+    subprocess.run(["vcgencmd", "display_power", state], capture_output=True)
+    print("Écran %s" % ("allumé" if display_on else "éteint"))
+    if display_on:
+        try:
+            ws_url = get_ws_url()
+            ws = websocket.create_connection(ws_url, timeout=5)
+            inject_toast(ws, name, duration)
+            ws.close()
+        except Exception as e:
+            print("Toast écran allumé impossible: %s" % e)
+
+
+def main():
+    config = load_config()
+    buttons = config["buttons"]
+    power_btn = config.get("power_button")
+    duration = config.get("overlay_duration_seconds", 2)
+
+    pin_map = {btn["gpio_pin"]: btn for btn in buttons}
+    power_pin = power_btn["gpio_pin"] if power_btn else None
+
     GPIO.setmode(GPIO.BCM)
+
     for btn in buttons:
         pin = btn["gpio_pin"]
         GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -99,21 +126,29 @@ def setup_gpio(buttons):
                               callback=lambda p: event_queue.put(p),
                               bouncetime=300)
 
+    if power_pin is not None:
+        GPIO.setup(power_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.add_event_detect(power_pin, GPIO.FALLING,
+                              callback=lambda p: event_queue.put(p),
+                              bouncetime=500)
 
-def main():
-    config = load_config()
-    buttons = config["buttons"]
-    duration = config.get("overlay_duration_seconds", 2)
-    pin_map = {btn["gpio_pin"]: btn for btn in buttons}
-
-    setup_gpio(buttons)
-    print("gpio-monitor prêt, %d boutons" % len(buttons))
+    nav_count = len(buttons)
+    print("gpio-monitor prêt, %d boutons + power" % nav_count)
 
     while running:
         try:
             pin = event_queue.get(timeout=1)
         except Empty:
             continue
+
+        if power_pin is not None and pin == power_pin:
+            print("Bouton power (pin %d)" % pin)
+            try:
+                toggle_display(power_btn["name"], duration)
+            except Exception as e:
+                print("Erreur power: %s" % e)
+            continue
+
         btn = pin_map.get(pin)
         if not btn:
             continue

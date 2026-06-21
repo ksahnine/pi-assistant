@@ -23,7 +23,11 @@ sudo apt-get install -y -qq \
   python3-websocket \
   python3-rpi.gpio
 
-# 3. Créer le répertoire de destination si différent
+# 3. Ajouter pi au groupe video (pour vcgencmd display_power)
+echo "--- Droits vcgencmd ---"
+sudo usermod -a -G video pi
+
+# 4. Créer le répertoire de destination si différent
 if [ "$DIR" != "/home/pi/transport-display" ]; then
   mkdir -p /home/pi/transport-display
   cp "$DIR/config.json" /home/pi/transport-display/
@@ -38,7 +42,7 @@ fi
 
 chmod +x "$TARGET/start-kiosk.sh" "$TARGET/gpio-monitor.py"
 
-# 4. Créer les services systemd
+# 5. Créer les services systemd
 echo "--- Configuration des services systemd ---"
 
 # Service Chromium kiosk
@@ -83,7 +87,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable transport-kiosk
 sudo systemctl enable transport-gpio
 
-# 5. Notifier
+# 6. Notifier
 echo ""
 echo "=== Installation terminée ==="
 echo ""
@@ -91,6 +95,10 @@ echo "Câblage des boutons (pull-up interne, broche --- bouton --- GND) :"
 for pin in $(jq -r '.buttons[].gpio_pin' "$TARGET/config.json"); do
   echo "  GPIO $pin --> bouton --> GND"
 done
+power_pin=$(jq -r '.power_button.gpio_pin // empty' "$TARGET/config.json")
+if [ -n "$power_pin" ]; then
+  echo "  GPIO $power_pin --> bouton (veille) --> GND"
+fi
 echo ""
 echo "Redémarrez le RPi pour lancer le kiosk :"
 echo "  sudo reboot"

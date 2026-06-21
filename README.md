@@ -29,9 +29,9 @@ Chaque appui sur un bouton déclenche :
 
 ```
 /home/pi/transport-display/
-├── config.json           # URLs, GPIO pins, options
+├── config.json           # URLs, GPIO pins, options (nav + power)
 ├── start-kiosk.sh        # Lance Chromium en kiosk (port 9222)
-├── gpio-monitor.py       # Surveille les GPIO, navigue via CDP
+├── gpio-monitor.py       # Surveille les GPIO, navigue CDP + toggle écran
 └── install.sh            # Installation complète
 ```
 
@@ -40,12 +40,16 @@ Chaque appui sur un bouton déclenche :
 Pull-up interne activé dans le script (pas de résistance externe).
 
 ```
-GPIO 17 ──┬─── bouton ─── GND
-GPIO 22 ──┬─── bouton ─── GND
-GPIO 23 ──┬─── bouton ─── GND
+GPIO 17 ──┬─── bouton nav 1 ─── GND
+GPIO 22 ──┬─── bouton nav 2 ─── GND
+GPIO 23 ──┬─── bouton nav 3 ─── GND
+GPIO 27 ──┬─── bouton veille ─── GND
 ```
 
 Brancher chaque bouton entre le GPIO et un pin GND du RPi.
+
+Le bouton **veille** (GPIO 27) bascule l'écran ON/OFF via `vcgencmd display_power`.
+Chromium continue de tourner en arrière-plan, l'affichage revient instantanément.
 
 ## Installation
 
@@ -98,7 +102,11 @@ sudo reboot
       "name": "Metro 1",
       "url": "https://departs.leon.gp/screen/?screenId=metro&stopId=..."
     }
-  ]
+  ],
+  "power_button": {
+    "gpio_pin": 27,
+    "name": "Veille"
+  }
 }
 ```
 

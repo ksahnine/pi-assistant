@@ -1,63 +1,74 @@
 # Pi-Assistant Transport Kiosk
 
 Affichage des horaires de transport en commun sur Raspberry Pi 3 + écran DSI tactile,
-avec boutons poussoirs GPIO pour basculer entre plusieurs lignes/arrêts.
+avec entrée configurable : boutons GPIO ou télécommande IR.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                    Raspberry Pi                      │
-│                                                      │
-│  gpio-monitor.py ─── GPIO ─── boutons poussoirs     │
-│       │                                              │
-│       ├── WebSocket ──► Chromium DevTools API        │
-│       │    (Page.navigate + Runtime.evaluate)        │
-│       │                                              │
-│  Chromium ─── kiosk ─── remote-debugging-port 9222   │
-│                                                      │
-│  start-kiosk.sh ──► lance Chromium                   │
-│                                                      │
-└─────────────────────────────────────────────────────┘
+                          config.json
+                              │
+              ┌───────────────┴───────────────┐
+              │            input.method        │
+         method=gpio                   method=ir
+              │                              │
+    RPi.GPIO (pins)            gpio-ir-recv (kernel)
+              │                    python-evdev
+              │                              │
+              └───────────┬──────────────────┘
+                          │
+                   event_queue (thread-safe)
+                          │
+              ┌───────────┴───────────┐
+              │                       │
+       Page.navigate (CDP)    vcgencmd display_power
+              │                       │
+         Chromium 9222           écran ON/OFF
 ```
 
-Chaque appui sur un bouton déclenche :
-1. `Page.navigate` vers l'URL associée (via CDP, **sans redémarrage ni flash**)
-2. Un toast overlay avec le nom de la ligne (2s puis disparaît)
+Deux méthodes d'entrée possibles, une seule active à la fois.
 
 ## Arborescence
 
 ```
 /home/pi/transport-display/
-├── config.json           # URLs, GPIO pins, options (nav + power)
+├── config.json           # Tout le projet : display, screens, input
 ├── start-kiosk.sh        # Lance Chromium en kiosk (port 9222)
-├── gpio-monitor.py       # Surveille les GPIO, navigue CDP + toggle écran
+├── gpio-monitor.py       # Input GPIO ou IR + navigation CDP
 └── install.sh            # Installation complète
 ```
 
-## Câblage des boutons
+## Câblage
 
-Pull-up interne activé dans le script (pas de résistance externe).
+### Mode GPIO (input.method = "gpio")
+
+Pull-up interne, chaque broche → bouton → GND.
 
 ```
-GPIO 17 ──┬─── bouton nav 1 ─── GND
-GPIO 22 ──┬─── bouton nav 2 ─── GND
-GPIO 23 ──┬─── bouton nav 3 ─── GND
-GPIO 27 ──┬─── bouton veille ─── GND
+GPIO 17 ──┬─── bouton navigate screen[0] ─── GND
+GPIO 22 ──┬─── bouton navigate screen[1] ─── GND
+GPIO 23 ──┬─── bouton navigate screen[2] ─── GND
+GPIO 27 ──┬─── bouton power (veille) ──────── GND
 ```
 
-Brancher chaque bouton entre le GPIO et un pin GND du RPi.
+### Mode IR (input.method = "ir")
 
-Le bouton **veille** (GPIO 27) bascule l'écran ON/OFF via `vcgencmd display_power`.
-Chromium continue de tourner en arrière-plan, l'affichage revient instantanément.
+```
+TSOP38238 / VS1838B      RPi GPIO
+┌────────────────┐
+│ OUT  ──────────┼──── GPIO 18
+│ VCC  ──────────┼──── 3.3V (pin 1)
+│ GND  ──────────┼──── GND
+└────────────────┘
+```
 
 ## Installation
 
 ### 1. Prérequis
 
-- Raspberry Pi 3 avec Raspberry Pi OS Desktop installé
+- Raspberry Pi 3 avec Raspberry Pi OS Desktop
 - Écran officiel RPi Touch DSI
-- Connexion WiFi (ou ethernet)
+- Connexion WiFi ou ethernet
 - SSH activé
 
 ### 2. Copier les fichiers
@@ -66,7 +77,7 @@ Chromium continue de tourner en arrière-plan, l'affichage revient instantanéme
 scp -r transport-display/ pi@<ip-du-rpi>:/home/pi/
 ```
 
-### 3. Lancer l'installation
+### 3. Installer
 
 ```bash
 ssh pi@<ip-du-rpi>
@@ -87,48 +98,75 @@ sudo reboot
 
 ```json
 {
-  "hide_cursor": true,
-  "touch_enabled": true,
-  "overlay_duration_seconds": 2,
-  "default_url": "https://...",
-  "buttons": [
-    {
-      "gpio_pin": 17,
-      "name": "Bus 56",
-      "url": "https://departs.leon.gp/screen/?screenId=bus&stopId=..."
-    },
-    {
-      "gpio_pin": 22,
-      "name": "Metro 1",
-      "url": "https://departs.leon.gp/screen/?screenId=metro&stopId=..."
-    }
+  "display": {
+    "hide_cursor": true,
+    "touch_enabled": true,
+    "overlay_duration_seconds": 2
+  },
+
+  "screens": [
+    { "name": "RER Magenta",     "url": "https://monrer.fr/?s=MGT" },
+    { "name": "RER Paris Nord",  "url": "https://monrer.fr/?s=GDS" },
+    { "name": "Metro / Bus",     "url": "https://departs.leon.gp/..." }
   ],
-  "power_button": {
-    "gpio_pin": 27,
-    "name": "Veille"
+
+  "default_screen": 0,
+
+  "power": { "name": "Veille" },
+
+  "input": {
+    "method": "ir",
+    "gpio": {
+      "pins": [
+        { "gpio_pin": 17, "action": "navigate", "screen": 0 },
+        { "gpio_pin": 22, "action": "navigate", "screen": 1 },
+        { "gpio_pin": 23, "action": "navigate", "screen": 2 },
+        { "gpio_pin": 27, "action": "power" }
+      ]
+    },
+    "ir": {
+      "gpio_pin": 18,
+      "keymap": {
+        "KEY_1":     { "action": "navigate", "screen": 0 },
+        "KEY_2":     { "action": "navigate", "screen": 1 },
+        "KEY_3":     { "action": "navigate", "screen": 2 },
+        "KEY_POWER": { "action": "power" }
+      }
+    }
   }
 }
 ```
 
-Puis redémarrer les services :
+### Découvrir les codes IR
+
+Après installation et redémarrage :
 
 ```bash
-sudo systemctl restart transport-kiosk transport-gpio
+sudo ir-keytable -t
 ```
 
-## Maintenance
+Appuyez sur les touches de votre télécommande. Notez les codes `KEY_*` affichés,
+puis renseignez-les dans `input.ir.keymap`.
 
-| Commande | Action |
-|----------|--------|
-| `ssh pi@<ip-du-rpi>` | Connexion SSH |
-| `journalctl -u transport-kiosk -f` | Logs Chromium |
-| `journalctl -u transport-gpio -f` | Logs GPIO |
-| `sudo systemctl stop transport-kiosk transport-gpio` | Arrêt |
-| `sudo systemctl disable transport-kiosk transport-gpio` | Désactiver au boot |
+Redémarrez le service :
+
+```bash
+sudo systemctl restart transport-gpio
+```
+
+### Basculer entre GPIO et IR
+
+Changer `"method": "gpio"` ↔ `"method": "ir"` dans `config.json`,
+redémarrer le service. Les deux configurations restent dans le fichier.
 
 ## Services systemd
 
 | Service | Rôle |
 |---------|------|
 | `transport-kiosk.service` | Chromium en kiosk |
-| `transport-gpio.service` | Surveillance boutons (dépend de kiosk) |
+| `transport-gpio.service` | Input monitor (GPIO ou IR) |
+
+```bash
+journalctl -u transport-kiosk -f
+journalctl -u transport-gpio -f
+```

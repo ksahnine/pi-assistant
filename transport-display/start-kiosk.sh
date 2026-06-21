@@ -9,14 +9,14 @@ if [ ! -f "$CONFIG" ]; then
   exit 1
 fi
 
-URL="$(jq -r '.default_url' "$CONFIG")"
-HIDE_CURSOR="$(jq -r '.hide_cursor // true' "$CONFIG")"
-TOUCH_ENABLED="$(jq -r '.touch_enabled // true' "$CONFIG")"
+INDEX="$(jq -r '.default_screen // 0' "$CONFIG")"
+URL="$(jq -r ".screens[$INDEX].url" "$CONFIG")"
+HIDE_CURSOR="$(jq -r '.display.hide_cursor // true' "$CONFIG")"
+TOUCH_ENABLED="$(jq -r '.display.touch_enabled // true' "$CONFIG")"
 
 export DISPLAY=:0
 export XAUTHORITY="$HOME/.Xauthority"
 
-# Attendre que le serveur X soit prêt
 for i in $(seq 1 30); do
   if xset q &>/dev/null; then
     break
@@ -24,17 +24,14 @@ for i in $(seq 1 30); do
   sleep 1
 done
 
-# Désactiver la mise en veille et l'économie d'énergie
 xset s off
 xset -dpms
 xset s noblank
 
-# Cacher le curseur
 if [ "$HIDE_CURSOR" = "true" ]; then
   unclutter -idle 0.1 -root &
 fi
 
-# Flags Chromium
 FLAGS=(
   --kiosk
   --noerrdialogs
@@ -57,7 +54,6 @@ if [ "$TOUCH_ENABLED" = "true" ]; then
   FLAGS+=(--touch-events=enabled)
 fi
 
-# Forcer l'utilisation de Chromium (ou chromium-browser)
 BROWSER=""
 for cmd in chromium-browser chromium; do
   if command -v "$cmd" &>/dev/null; then

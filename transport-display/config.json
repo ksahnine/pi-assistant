@@ -1,27 +1,51 @@
 {
-  "hide_cursor": true,
-  "touch_enabled": true,
-  "overlay_duration_seconds": 2,
-  "default_url": "https://monrer.fr/?s=MGT",
-  "buttons": [
+  "display": {
+    "hide_cursor": true,
+    "touch_enabled": true,
+    "overlay_duration_seconds": 2
+  },
+
+  "screens": [
     {
-      "gpio_pin": 17,
       "name": "RER Magenta",
       "url": "https://monrer.fr/?s=MGT"
     },
     {
-      "gpio_pin": 22,
       "name": "RER Paris Nord",
       "url": "https://monrer.fr/?s=GDS"
     },
     {
-      "gpio_pin": 23,
       "name": "Metro / Bus La Chapelle",
       "url": "https://departs.leon.gp/screen/?screenId=bus&stopId=fr-idf_IDFM:71434&lineId=fr-idf_IDFM:C01089"
     }
   ],
-  "power_button": {
-    "gpio_pin": 27,
+
+  "default_screen": 0,
+
+  "power": {
     "name": "Veille"
+  },
+
+  "input": {
+    "method": "ir",
+
+    "gpio": {
+      "pins": [
+        { "gpio_pin": 17, "action": "navigate", "screen": 0 },
+        { "gpio_pin": 22, "action": "navigate", "screen": 1 },
+        { "gpio_pin": 23, "action": "navigate", "screen": 2 },
+        { "gpio_pin": 27, "action": "power" }
+      ]
+    },
+
+    "ir": {
+      "gpio_pin": 18,
+      "keymap": {
+        "KEY_1":     { "action": "navigate", "screen": 0 },
+        "KEY_2":     { "action": "navigate", "screen": 1 },
+        "KEY_3":     { "action": "navigate", "screen": 2 },
+        "KEY_POWER": { "action": "power" }
+      }
+    }
   }
 }

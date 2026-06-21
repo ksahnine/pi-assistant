@@ -11,7 +11,7 @@ if [ ! -f /proc/device-tree/model ]; then
   exit 1
 fi
 
-# 2. Installer les dépendances
+# 2. Installer les dépendances de base
 echo "--- Installation des dépendances ---"
 sudo apt-get update -qq
 sudo apt-get install -y -qq \
@@ -20,14 +20,33 @@ sudo apt-get install -y -qq \
   unclutter \
   x11-xserver-utils \
   python3-requests \
-  python3-websocket \
-  python3-rpi.gpio
+  python3-websocket
 
-# 3. Ajouter pi au groupe video (pour vcgencmd display_power)
+# 3. Dépendances selon la méthode d'entrée
+METHOD=$(jq -r '.input.method' "$DIR/config.json")
+echo "--- Méthode d'entrée: $METHOD ---"
+
+if [ "$METHOD" = "gpio" ]; then
+  sudo apt-get install -y -qq python3-rpi.gpio
+elif [ "$METHOD" = "ir" ]; then
+  sudo apt-get install -y -qq \
+    ir-keytable \
+    python3-evdev
+
+  IR_PIN=$(jq -r '.input.ir.gpio_pin // 18' "$DIR/config.json")
+  if ! grep -q "gpio-ir-recv" /boot/config.txt 2>/dev/null; then
+    echo "dtoverlay=gpio-ir-recv,gpio_pin=$IR_PIN" | sudo tee -a /boot/config.txt
+    echo "  -> dtoverlay ajouté à /boot/config.txt (redémarrage requis)"
+  else
+    echo "  -> dtoverlay déjà présent dans /boot/config.txt"
+  fi
+fi
+
+# 4. Ajouter pi au groupe video (pour vcgencmd display_power)
 echo "--- Droits vcgencmd ---"
 sudo usermod -a -G video pi
 
-# 4. Créer le répertoire de destination si différent
+# 5. Créer le répertoire de destination
 if [ "$DIR" != "/home/pi/transport-display" ]; then
   mkdir -p /home/pi/transport-display
   cp "$DIR/config.json" /home/pi/transport-display/
@@ -42,10 +61,9 @@ fi
 
 chmod +x "$TARGET/start-kiosk.sh" "$TARGET/gpio-monitor.py"
 
-# 5. Créer les services systemd
+# 6. Créer les services systemd
 echo "--- Configuration des services systemd ---"
 
-# Service Chromium kiosk
 sudo tee /etc/systemd/system/transport-kiosk.service > /dev/null <<EOF
 [Unit]
 Description=Transport Kiosk
@@ -65,10 +83,9 @@ RestartSec=10
 WantedBy=graphical.target
 EOF
 
-# Service GPIO monitor
 sudo tee /etc/systemd/system/transport-gpio.service > /dev/null <<EOF
 [Unit]
-Description=Transport GPIO Button Monitor
+Description=Transport Input Monitor (GPIO/IR)
 After=transport-kiosk.service
 BindsTo=transport-kiosk.service
 
@@ -87,27 +104,29 @@ sudo systemctl daemon-reload
 sudo systemctl enable transport-kiosk
 sudo systemctl enable transport-gpio
 
-# 6. Notifier
+# 7. Notifier
 echo ""
 echo "=== Installation terminée ==="
 echo ""
-echo "Câblage des boutons (pull-up interne, broche --- bouton --- GND) :"
-for pin in $(jq -r '.buttons[].gpio_pin' "$TARGET/config.json"); do
-  echo "  GPIO $pin --> bouton --> GND"
-done
-power_pin=$(jq -r '.power_button.gpio_pin // empty' "$TARGET/config.json")
-if [ -n "$power_pin" ]; then
-  echo "  GPIO $power_pin --> bouton (veille) --> GND"
+
+if [ "$METHOD" = "gpio" ]; then
+  echo "Câblage des boutons (pull-up interne) :"
+  for pin in $(jq -r '.input.gpio.pins[] | "GPIO " + (.gpio_pin|tostring) + " --> " + .action' "$TARGET/config.json"); do
+    echo "  $pin"
+  done
+elif [ "$METHOD" = "ir" ]; then
+  VDD_PIN=$((IR_PIN - 1))
+  GND_PIN=$((IR_PIN + 2))
+  echo "Câblage récepteur IR (GPIO $IR_PIN) :"
+  echo "  OUT  --> GPIO $IR_PIN"
+  echo "  VCC  --> 3.3V (pin 1)"
+  echo "  GND  --> GND"
+  echo ""
+  echo "Après redémarrage, découvrez les codes de votre télécommande :"
+  echo "  sudo ir-keytable -t"
+  echo "Puis éditez input.ir.keymap dans config.json"
 fi
+
 echo ""
-echo "Redémarrez le RPi pour lancer le kiosk :"
+echo "Redémarrez le RPi :"
 echo "  sudo reboot"
-echo ""
-echo "Ou démarrez les services immédiatement :"
-echo "  sudo systemctl start transport-kiosk"
-echo "  sudo systemctl start transport-gpio"
-echo ""
-echo "Pour modifier les stations, éditez :"
-echo "  $TARGET/config.json"
-echo "Puis redémarrez les services :"
-echo "  sudo systemctl restart transport-kiosk transport-gpio"

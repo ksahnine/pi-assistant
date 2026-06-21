@@ -9,7 +9,7 @@ if [ ! -f "$CONFIG" ]; then
   exit 1
 fi
 
-URL="$(jq -r '.url' "$CONFIG")"
+URL="$(jq -r '.default_url' "$CONFIG")"
 HIDE_CURSOR="$(jq -r '.hide_cursor // true' "$CONFIG")"
 TOUCH_ENABLED="$(jq -r '.touch_enabled // true' "$CONFIG")"
 
@@ -43,6 +43,7 @@ FLAGS=(
   --disable-restore-session-state
   --disable-translate
   --password-store=basic
+  --remote-debugging-port=9222
   --disable-features=TranslateUI
   --disable-features=ChromeWhatsNewUI
   --disable-session-crashed-bubble

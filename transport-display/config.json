@@ -1,5 +1,23 @@
 {
-  "url": "https://departs.leon.gp/screen/?screenId=bus&stopId=fr-idf_IDFM:71434&lineId=fr-idf_IDFM:C01089",
   "hide_cursor": true,
-  "touch_enabled": true
+  "touch_enabled": true,
+  "overlay_duration_seconds": 2,
+  "default_url": "https://departs.leon.gp/screen/?screenId=bus&stopId=fr-idf_IDFM:71434&lineId=fr-idf_IDFM:C01089",
+  "buttons": [
+    {
+      "gpio_pin": 17,
+      "name": "Bus 56",
+      "url": "https://departs.leon.gp/screen/?screenId=bus&stopId=fr-idf_IDFM:71434&lineId=fr-idf_IDFM:C01089"
+    },
+    {
+      "gpio_pin": 22,
+      "name": "Metro 1",
+      "url": "https://departs.leon.gp/screen/?screenId=bus&stopId=fr-idf_IDFM:71434&lineId=fr-idf_IDFM:C01089"
+    },
+    {
+      "gpio_pin": 23,
+      "name": "RER A",
+      "url": "https://departs.leon.gp/screen/?screenId=bus&stopId=fr-idf_IDFM:71434&lineId=fr-idf_IDFM:C01089"
+    }
+  ]
 }

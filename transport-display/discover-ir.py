@@ -14,6 +14,9 @@ def main():
     dev = find_ir_device()
     if dev is None:
         print("Aucun périphérique IR trouvé.")
+        print("Vérifiez que l'overlay gpio-ir est activé :")
+        print("  dtoverlay -l | grep gpio-ir")
+        print("  dmesg | grep -i ir")
         print("Périphériques détectés :")
         for d in [evdev.InputDevice(p) for p in evdev.list_devices()]:
             print("  %-20s %s" % (d.name, d.path))

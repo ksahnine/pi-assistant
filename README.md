@@ -11,7 +11,7 @@ Télécommande IR
       ▼
 HX1838 ── GPIO 18
       │
-gpio-ir-recv (kernel)
+gpio-ir (kernel overlay)
       │
 python-evdev ── gpio-monitor.py
       │              │

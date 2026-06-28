@@ -29,8 +29,12 @@ echo "--- Driver récepteur IR ---"
 IR_PIN=$(jq -r '.ir.gpio_pin // 18' "$DIR/config.json")
 CONFIG_FILE="/boot/firmware/config.txt"
 [ ! -f "$CONFIG_FILE" ] && CONFIG_FILE="/boot/config.txt"
-if ! grep -q "gpio-ir-recv" "$CONFIG_FILE" 2>/dev/null; then
-  echo "dtoverlay=gpio-ir-recv,gpio_pin=$IR_PIN" | sudo tee -a "$CONFIG_FILE"
+OVERLAY="gpio-ir"
+if grep -q "gpio-ir-recv" "$CONFIG_FILE" 2>/dev/null; then
+  OVERLAY="gpio-ir-recv"
+fi
+if ! grep -q "gpio-ir" "$CONFIG_FILE" 2>/dev/null; then
+  echo "dtoverlay=$OVERLAY,gpio_pin=$IR_PIN" | sudo tee -a "$CONFIG_FILE"
   echo "  -> dtoverlay ajouté à $CONFIG_FILE (redémarrage requis)"
 else
   echo "  -> déjà présent dans $CONFIG_FILE"

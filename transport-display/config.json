@@ -8,6 +8,10 @@
 
   "screens": [
     {
+      "name": "Meteo",
+      "url": "https://meteofrance.com/widget/prevision/751100##3D6AA2"
+    },
+    {
       "name": "RER Magenta",
       "url": "https://monrer.fr/?s=MGT"
     },
@@ -18,6 +22,14 @@
     {
       "name": "Metro / Bus La Chapelle",
       "url": "https://departs.leon.gp/screen/?screenId=bus&stopId=fr-idf_IDFM:71434&lineId=fr-idf_IDFM:C01089"
+    },
+    {
+      "name": "Metro / Bus Porte de La Chapelle",
+      "url": "https://departs.leon.gp/screen?screenId=gare&stopId=fr-idf_IDFM:72064&lineId=null"
+    },
+    {
+      "name": "Gare du Nord RER Metro",
+      "url": "https://departs.leon.gp/screen?screenId=gare&stopId=fr-idf_IDFM:71410&lineId=null"
     }
   ],
 

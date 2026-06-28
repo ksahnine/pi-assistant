@@ -41,6 +41,7 @@ FLAGS=(
   --disable-translate
   --password-store=basic
   --remote-debugging-port=9222
+  --remote-allow-origins=*
   --disable-features=TranslateUI
   --disable-features=ChromeWhatsNewUI
   --disable-session-crashed-bubble

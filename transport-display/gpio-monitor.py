@@ -17,6 +17,7 @@ event_queue = Queue()
 running = True
 display_on = True
 last_activity = 0.0
+current_screen = 0
 
 
 def cleanup(*_a):
@@ -156,7 +157,7 @@ def setup_ir(ir_cfg):
     t.start()
 
 
-def setup_touch():
+def setup_touch(swipe_threshold):
     import evdev
     from evdev import InputDevice, ecodes
     devices = [InputDevice(p) for p in evdev.list_devices()]
@@ -171,14 +172,29 @@ def setup_touch():
         return
     print("Touch: %s sur %s" % (touch_dev.name, touch_dev.path))
 
+    touch_start_x = None
+    touch_x = 0
+
     def loop():
+        nonlocal touch_start_x, touch_x
         for event in touch_dev.read_loop():
-            if (event.type == ecodes.EV_KEY and
-                event.code == ecodes.BTN_TOUCH and
-                    event.value == 1):
-                activity()
-                if not display_on:
-                    wake_screen()
+            if event.type == ecodes.EV_KEY and event.code == ecodes.BTN_TOUCH:
+                if event.value == 1:
+                    touch_start_x = touch_x
+                    activity()
+                    if not display_on:
+                        wake_screen()
+                elif event.value == 0 and touch_start_x is not None:
+                    dx = touch_x - touch_start_x
+                    if swipe_threshold > 0 and abs(dx) >= swipe_threshold:
+                        if dx > 0:
+                            event_queue.put({"action": "navigate_prev"})
+                        else:
+                            event_queue.put({"action": "navigate_next"})
+                    touch_start_x = None
+            elif event.type == ecodes.EV_ABS:
+                if event.code in (ecodes.ABS_X, ecodes.ABS_MT_POSITION_X):
+                    touch_x = event.value
 
     t = threading.Thread(target=loop, daemon=True)
     t.start()
@@ -188,11 +204,13 @@ def main():
     global display_on, last_activity
     config = load_config()
     screens = config["screens"]
+    global current_screen
     default_screen = config.get("default_screen", 0)
     power_cfg = config.get("power", {})
     power_name = power_cfg.get("name", "Veille")
     idle_sleep = power_cfg.get("idle_sleep_seconds", 0)
     duration = config.get("display", {}).get("overlay_duration_seconds", 2)
+    swipe_threshold = config.get("display", {}).get("swipe_threshold_px", 0)
 
     if not screens:
         sys.exit("Aucun écran configuré")
@@ -205,8 +223,9 @@ def main():
 
     last_activity = time.time()
 
+    current_screen = default_screen
     setup_ir(config["ir"])
-    setup_touch()
+    setup_touch(swipe_threshold)
     print("gpio-monitor prêt, %d écrans" % len(screens))
 
     while running:
@@ -226,7 +245,18 @@ def main():
             if idx < 0 or idx >= len(screens):
                 print("Index invalide: %d" % idx)
                 continue
+            current_screen = idx
             s = screens[idx]
+            print("Navigation: %s" % s["name"])
+            navigate_to(s["url"], s["name"], duration)
+        elif action == "navigate_prev":
+            current_screen = (current_screen - 1) % len(screens)
+            s = screens[current_screen]
+            print("Navigation: %s" % s["name"])
+            navigate_to(s["url"], s["name"], duration)
+        elif action == "navigate_next":
+            current_screen = (current_screen + 1) % len(screens)
+            s = screens[current_screen]
             print("Navigation: %s" % s["name"])
             navigate_to(s["url"], s["name"], duration)
         elif action == "power":

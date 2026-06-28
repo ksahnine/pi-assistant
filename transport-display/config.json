@@ -2,7 +2,8 @@
   "display": {
     "hide_cursor": true,
     "touch_enabled": true,
-    "overlay_duration_seconds": 2
+    "overlay_duration_seconds": 2,
+    "swipe_threshold_px": 80
   },
 
   "screens": [

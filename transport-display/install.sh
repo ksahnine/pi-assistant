@@ -22,8 +22,20 @@ sudo apt-get install -y -qq \
   python3-evdev \
   ir-keytable
 
-echo "--- Droits vcgencmd ---"
-sudo usermod -a -G video pi
+echo "--- Droits peripheriques ---"
+sudo usermod -a -G video,input pi
+
+echo "--- Permission backlight sysfs (udev) ---"
+UDEV_RULE='/etc/udev/rules.d/99-backlight.rules'
+if [ ! -f "$UDEV_RULE" ]; then
+  echo 'SUBSYSTEM=="backlight", KERNEL=="10-0045", GROUP="video", MODE="0664"' | \
+    sudo tee "$UDEV_RULE" > /dev/null
+  sudo udevadm control --reload-rules
+  sudo udevadm trigger
+  echo "  -> règle udev créée"
+else
+  echo "  -> déjà présente"
+fi
 
 echo "--- Driver récepteur IR ---"
 IR_PIN=$(jq -r '.ir.gpio_pin // 18' "$DIR/config.json")
@@ -39,6 +51,15 @@ if ! grep -q "gpio-ir" "$CONFIG_FILE" 2>/dev/null; then
 else
   echo "  -> déjà présent dans $CONFIG_FILE"
 fi
+
+echo "--- Kiosk optimisé (override LXDE-pi autostart) ---"
+AUTOSTART_DIR="/home/pi/.config/lxsession/LXDE-pi"
+mkdir -p "$AUTOSTART_DIR"
+cat > "$AUTOSTART_DIR/autostart" << 'EOF'
+@unclutter -idle 0.1 -root
+EOF
+chown -R pi:pi "/home/pi/.config/lxsession"
+echo "  -> LXDE-pi allégé (plus de bureau/panneau)"
 
 echo "--- Copie ---"
 TARGET="/home/pi/transport-display"

@@ -23,7 +23,8 @@
   "default_screen": 0,
 
   "power": {
-    "name": "Veille"
+    "name": "Veille",
+    "idle_sleep_seconds": 30
   },
 
   "ir": {

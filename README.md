@@ -40,6 +40,48 @@ Deux méthodes d'entrée possibles, une seule active à la fois.
 
 ## Câblage
 
+### Correspondance GPIO BCM / pin physique
+
+Sur le connecteur 40 broches du RPi, le numéro GPIO (Broadcom) diffère du numéro de pin physique :
+
+```
+┌─────────────────────────────────┐
+│                          CARTE  │
+│ SD                            • │
+├─────────────────────────────────┤
+│  (1)  3.3V       5V  (2)       │
+│  (3)  GPIO 2     5V  (4)       │
+│  (5)  GPIO 3     GND (6)       │
+│  (7)  GPIO 4    GPIO 14 (8)    │
+│  (9)  GND       GPIO 15 (10)   │
+│ (11)  GPIO 17   GPIO 18 (12)   │
+│ (13)  GPIO 27   GND   (14)     │
+│ (15)  GPIO 22   GPIO 23 (16)   │
+│ (17)  3.3V      GPIO 24 (18)   │
+│ (19)  GPIO 10   GND   (20)     │
+│ (21)  GPIO 9    GPIO 25 (22)   │
+│ (23)  GPIO 11   GPIO 8  (24)   │
+│ (25)  GND       GPIO 7  (26)   │
+│ (27)  GPIO 0    GPIO 1  (28)   │
+│ (29)  GPIO 5    GND   (30)     │
+│ (31)  GPIO 6    GPIO 12 (32)   │
+│ (33)  GPIO 13   GND   (34)     │
+│ (35)  GPIO 19   GPIO 16 (36)   │
+│ (37)  GPIO 26   GPIO 20 (38)   │
+│ (39)  GND       GPIO 21 (40)   │
+└─────────────────────────────────┘
+```
+
+Pins utilisées par ce projet :
+
+| GPIO BCM | Pin physique | Usage |
+|----------|-------------|-------|
+| 17       | 11          | Bouton / IR key screen[0] |
+| 22       | 15          | Bouton / IR key screen[1] |
+| 23       | 16          | Bouton / IR key screen[2] |
+| 27       | 13          | Bouton power |
+| 18       | 12          | Récepteur IR (OUT) |
+
 ### Mode GPIO (input.method = "gpio")
 
 Pull-up interne, chaque broche → bouton → GND.

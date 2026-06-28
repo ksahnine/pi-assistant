@@ -26,26 +26,13 @@
     "name": "Veille"
   },
 
-  "input": {
-    "method": "ir",
-
-    "gpio": {
-      "pins": [
-        { "gpio_pin": 17, "action": "navigate", "screen": 0 },
-        { "gpio_pin": 22, "action": "navigate", "screen": 1 },
-        { "gpio_pin": 23, "action": "navigate", "screen": 2 },
-        { "gpio_pin": 27, "action": "power" }
-      ]
-    },
-
-    "ir": {
-      "gpio_pin": 18,
-      "keymap": {
-        "KEY_1":     { "action": "navigate", "screen": 0 },
-        "KEY_2":     { "action": "navigate", "screen": 1 },
-        "KEY_3":     { "action": "navigate", "screen": 2 },
-        "KEY_POWER": { "action": "power" }
-      }
+  "ir": {
+    "gpio_pin": 18,
+    "keymap": {
+      "KEY_1":     { "action": "navigate", "screen": 0 },
+      "KEY_2":     { "action": "navigate", "screen": 1 },
+      "KEY_3":     { "action": "navigate", "screen": 2 },
+      "KEY_POWER": { "action": "power" }
     }
   }
 }

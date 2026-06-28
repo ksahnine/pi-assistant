@@ -6,7 +6,7 @@ import signal
 import sys
 import requests
 import websocket
-import os
+import threading
 from queue import Queue, Empty
 
 CONFIG_PATH = "/home/pi/transport-display/config.json"
@@ -15,14 +15,9 @@ CDP_URL = "http://127.0.0.1:9222/json"
 event_queue = Queue()
 running = True
 display_on = True
-_gpio = None
 
 
-def cleanup(*_args):
-    global running
-    running = False
-    if _gpio is not None:
-        _gpio.cleanup()
+def cleanup(*_a):
     sys.exit(0)
 
 
@@ -107,100 +102,46 @@ def toggle_display(name, duration):
             print("Toast écran ON impossible: %s" % e)
 
 
-def run_event(screen_idx, screens, power_name, duration):
-    if screen_idx == -1:
-        toggle_display(power_name, duration)
-        return
-    if screen_idx < 0 or screen_idx >= len(screens):
-        print("Index écran invalide: %d" % screen_idx)
-        return
-    screen = screens[screen_idx]
-    print("Navigation: %s" % screen["name"])
-    navigate_to(screen["url"], screen["name"], duration)
-
-
-def setup_input_gpio(pins):
-    global _gpio
-    import RPi.GPIO as GPIO
-    _gpio = GPIO
-    GPIO.setmode(GPIO.BCM)
-    for p in pins:
-        pin = p["gpio_pin"]
-        GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(pin, GPIO.FALLING,
-                              callback=lambda _p, cfg=p: event_queue.put(cfg),
-                              bouncetime=300)
-
-
-def setup_input_ir(ir_cfg):
+def setup_ir(ir_cfg):
     import evdev
     from evdev import InputDevice, ecodes
-    import threading
 
     devices = [InputDevice(p) for p in evdev.list_devices()]
     ir_dev = None
     for d in devices:
-        if "ir" in d.name.lower() or "cec" in d.name.lower():
+        if "ir" in d.name.lower():
             ir_dev = d
             break
     if ir_dev is None:
-        print("Périphérique IR non trouvé. Périphériques:", [d.name for d in devices])
-        return None
+        print("Périphérique IR non trouvé")
+        sys.exit(1)
 
-    print("IR trouvé: %s sur %s" % (ir_dev.name, ir_dev.path))
+    print("IR: %s sur %s" % (ir_dev.name, ir_dev.path))
     keymap = ir_cfg["keymap"]
 
     def read_loop():
         for event in ir_dev.read_loop():
             if event.type == ecodes.EV_KEY and event.value == 1:
-                try:
-                    key_name = ecodes.KEY[event.code]
-                except KeyError:
-                    continue
-                mapping = keymap.get(key_name)
+                key_name = ecodes.KEY.get(event.code)
+                mapping = keymap.get(key_name) if key_name else None
                 if mapping:
                     event_queue.put(mapping)
 
     t = threading.Thread(target=read_loop, daemon=True)
     t.start()
-    return t
 
 
 def main():
     config = load_config()
-    display_cfg = config.get("display", {})
-    screens = config.get("screens", [])
+    screens = config["screens"]
     default_screen = config.get("default_screen", 0)
     power_name = config.get("power", {}).get("name", "Veille")
-    duration = display_cfg.get("overlay_duration_seconds", 2)
-    input_cfg = config.get("input", {})
-    method = input_cfg.get("method", "gpio")
+    duration = config.get("display", {}).get("overlay_duration_seconds", 2)
 
-    if len(screens) == 0:
-        print("Aucun écran configuré")
-        sys.exit(1)
+    if not screens:
+        sys.exit("Aucun écran configuré")
 
-    if method == "gpio":
-        pins = input_cfg.get("gpio", {}).get("pins", [])
-        if not pins:
-            print("Méthode gpio mais aucun pin configuré")
-            sys.exit(1)
-        setup_input_gpio(pins)
-        print("Input: GPIO (%d pins)" % len(pins))
-    elif method == "ir":
-        ir_cfg = input_cfg.get("ir", {})
-        if not ir_cfg:
-            print("Méthode ir mais pas de configuration ir")
-            sys.exit(1)
-        ir_thread = setup_input_ir(ir_cfg)
-        if ir_thread is None:
-            print("IR non disponible")
-            sys.exit(1)
-        print("Input: IR")
-    else:
-        print("Méthode d'entrée inconnue: %s" % method)
-        sys.exit(1)
-
+    setup_ir(config["ir"])
     print("gpio-monitor prêt, %d écrans" % len(screens))
 
     while running:
@@ -211,15 +152,15 @@ def main():
 
         action = ev.get("action")
         if action == "navigate":
-            screen_idx = ev.get("screen", default_screen)
-            run_event(screen_idx, screens, power_name, duration)
+            idx = ev.get("screen", default_screen)
+            if idx < 0 or idx >= len(screens):
+                print("Index invalide: %d" % idx)
+                continue
+            s = screens[idx]
+            print("Navigation: %s" % s["name"])
+            navigate_to(s["url"], s["name"], duration)
         elif action == "power":
-            run_event(-1, screens, power_name, duration)
-        else:
-            print("Action inconnue: %s" % action)
-
-    if _gpio is not None:
-        _gpio.cleanup()
+            toggle_display(power_name, duration)
 
 
 if __name__ == "__main__":

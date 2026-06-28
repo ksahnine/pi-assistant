@@ -91,7 +91,7 @@ sudo tee /etc/systemd/system/transport-gpio.service > /dev/null <<EOF
 [Unit]
 Description=Transport IR Monitor
 After=transport-kiosk.service
-BindsTo=transport-kiosk.service
+PartOf=transport-kiosk.service
 
 [Service]
 Type=simple
@@ -101,7 +101,7 @@ Restart=always
 RestartSec=5
 
 [Install]
-WantedBy=graphical.target
+WantedBy=transport-kiosk.service
 EOF
 
 sudo systemctl daemon-reload

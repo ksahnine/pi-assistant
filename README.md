@@ -53,13 +53,20 @@ GPIO 27 ──┬─── bouton power (veille) ──────── GND
 
 ### Mode IR (input.method = "ir")
 
+Brancher un récepteur **HX1838** (38 kHz, compatible avec toutes les télécommandes standard).
+
+Vue du composant, face plate vers vous, pattes vers le bas :
+
 ```
-TSOP38238 / VS1838B      RPi GPIO
-┌────────────────┐
-│ OUT  ──────────┼──── GPIO 18
-│ VCC  ──────────┼──── 3.3V (pin 1)
-│ GND  ──────────┼──── GND
-└────────────────┘
+HX1838
+┌────────────┐
+│    ●       │  ← récepteur IR
+│ OUT GND VCC│
+└────────────┘
+  │    │    │
+  │    │    └── 3.3V (pin 1)
+  │    └─────── GND (pin 6)
+  └──────────── GPIO 18
 ```
 
 ## Installation

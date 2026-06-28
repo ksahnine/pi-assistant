@@ -117,10 +117,10 @@ if [ "$METHOD" = "gpio" ]; then
 elif [ "$METHOD" = "ir" ]; then
   VDD_PIN=$((IR_PIN - 1))
   GND_PIN=$((IR_PIN + 2))
-  echo "Câblage récepteur IR (GPIO $IR_PIN) :"
-  echo "  OUT  --> GPIO $IR_PIN"
-  echo "  VCC  --> 3.3V (pin 1)"
-  echo "  GND  --> GND"
+  echo "Câblage HX1838 (GPIO $IR_PIN) :"
+  echo "  OUT (pin 1)  --> GPIO $IR_PIN"
+  echo "  GND (pin 2)  --> GND"
+  echo "  VCC (pin 3)  --> 3.3V (pin 1)"
   echo ""
   echo "Après redémarrage, découvrez les codes de votre télécommande :"
   echo "  sudo ir-keytable -t"

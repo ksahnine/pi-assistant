@@ -34,11 +34,15 @@ elif [ "$METHOD" = "ir" ]; then
     python3-evdev
 
   IR_PIN=$(jq -r '.input.ir.gpio_pin // 18' "$DIR/config.json")
-  if ! grep -q "gpio-ir-recv" /boot/config.txt 2>/dev/null; then
-    echo "dtoverlay=gpio-ir-recv,gpio_pin=$IR_PIN" | sudo tee -a /boot/config.txt
-    echo "  -> dtoverlay ajouté à /boot/config.txt (redémarrage requis)"
+  CONFIG_FILE="/boot/firmware/config.txt"
+  if [ ! -f "$CONFIG_FILE" ]; then
+    CONFIG_FILE="/boot/config.txt"
+  fi
+  if ! grep -q "gpio-ir-recv" "$CONFIG_FILE" 2>/dev/null; then
+    echo "dtoverlay=gpio-ir-recv,gpio_pin=$IR_PIN" | sudo tee -a "$CONFIG_FILE"
+    echo "  -> dtoverlay ajouté à $CONFIG_FILE (redémarrage requis)"
   else
-    echo "  -> dtoverlay déjà présent dans /boot/config.txt"
+    echo "  -> dtoverlay déjà présent dans $CONFIG_FILE"
   fi
 fi
 
